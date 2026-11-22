@@ -1,0 +1,33 @@
+{
+  "name": "cookiwebimport",
+  "version": "1.0.0",
+  "description": "System importu przepisów na pizzę i jedzenie bezglutenowe do Cookidoo (Thermomix TM6/TM5/TM7)",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "cli": "node src/cli.js"
+  },
+  "keywords": [
+    "cookidoo",
+    "thermomix",
+    "pizza",
+    "gluten-free",
+    "bezglutenowe",
+    "przepisy",
+    "tm6",
+    "tm5"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@recode-software/cookidoo-api": "^0.2.0",
+    "cheerio": "^1.2.0",
+    "commander": "^15.1.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "fetch-cookie": "^3.2.0",
+    "tough-cookie": "^6.1.0"
+  }
+}

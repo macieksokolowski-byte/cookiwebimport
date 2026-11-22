@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CookiWebImport • Baza Przepisów Thermomix & Selektor Importu do Cookidoo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased selection:bg-emerald-500 selection:text-white pb-28">
+
+  <!-- Pasek nawigacji -->
+  <header class="border-b border-slate-800 bg-slate-900/95 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Logo i nazwa -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20">
+          🍕
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg text-white tracking-tight">CookiWebImport</h1>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Katalog TM6 / TM7
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Wyszukiwarka i Masowy Importer do Cookidoo (ze zdjęciami)</p>
+        </div>
+      </div>
+
+      <!-- Prawa strona nawigacji -->
+      <div class="flex items-center gap-3">
+        <!-- Status połączenia Cookidoo -->
+        <button id="connectionStatusBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-medium transition cursor-pointer">
+          <span id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="statusText">Sprawdzanie Cookidoo...</span>
+        </button>
+
+        <!-- Przycisk Własny przepis / URL -->
+        <button id="openCustomModalBtn" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition">
+          <span>🌐 Dodaj z URL</span>
+        </button>
+
+        <!-- Przycisk Książka Offline -->
+        <a href="/api/export/offline" target="_blank" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm shadow-emerald-600/30 transition">
+          <span>📖 Książka Offline</span>
+        </a>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Główny kontener -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Przełącznik Źródła: Baza lokalna vs Dynamiczne wyszukiwanie w chmurze vs Moje w Cookidoo -->
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-1.5 p-1 bg-slate-800/80 rounded-2xl border border-slate-700/80 flex-wrap">
+        <button id="sourceLocalBtn" class="source-tab px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 bg-emerald-600 text-white shadow-md shadow-emerald-900/30">
+          <span>📂 Twoja Biblioteka TM</span>
+          <span id="localCountBadge" class="px-1.5 py-0.5 rounded-full text-[10px] bg-white/20 text-white">...</span>
+        </button>
+        <button id="sourceCloudBtn" class="source-tab px-4 py-2 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white transition flex items-center gap-2">
+          <span>🌐 Wyszukaj w Internecie</span>
+          <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-teal-500/20 text-teal-300 border border-teal-500/30">Kwestia Smaku • Ania Gotuje • TM</span>
+        </button>
+        <button id="sourceCookidooBtn" class="source-tab px-4 py-2 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white transition flex items-center gap-2">
+          <span>☁️ Moje w Cookidoo</span>
+          <span id="cookidooCountBadge" class="px-1.5 py-0.5 rounded-full text-[10px] bg-sky-500/20 text-sky-300 border border-sky-500/30">0</span>
+        </button>
+      </div>
+
+      <div id="cloudInfoBanner" class="hidden text-xs text-teal-300 bg-teal-950/50 border border-teal-500/40 px-3.5 py-1.5 rounded-xl flex items-center gap-2 animate-pulse">
+        <span>⚡ Szukaj w największych portalach kulinarnych i importuj ze zdjęciem do Cookidoo!</span>
+      </div>
+      <div id="cookidooInfoBanner" class="hidden text-xs text-sky-300 bg-sky-950/50 border border-sky-500/40 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+        <span>☁️ Twoje utworzone przepisy w Cookidoo. Możesz je przeglądać lub usuwać pojedynczo i hurtowo.</span>
+      </div>
+    </div>
+
+    <!-- Wybór Portali Kulinarnych (Multi-Source Checkboxy) -->
+    <div id="cloudSourcesPicker" class="hidden p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 flex flex-wrap items-center gap-3">
+      <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+        <span>🔎 Szukaj w serwisach:</span>
+      </span>
+
+      <!-- Źródło 1: Przepisownia TM -->
+      <label class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-teal-500/40 bg-teal-950/40 text-teal-200 text-xs font-bold cursor-pointer hover:bg-teal-900/50 transition select-none">
+        <input type="checkbox" id="srcPrzepisowniaCb" class="accent-teal-500 w-4 h-4 cursor-pointer" checked>
+        <span>🍲 Przepisownia.pl (TM)</span>
+      </label>
+
+      <!-- Źródło 2: Kwestia Smaku -->
+      <label class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-rose-500/40 bg-rose-950/40 text-rose-200 text-xs font-bold cursor-pointer hover:bg-rose-900/50 transition select-none">
+        <input type="checkbox" id="srcKwestiaSmakuCb" class="accent-rose-500 w-4 h-4 cursor-pointer" checked>
+        <span>🍕 Kwestia Smaku</span>
+      </label>
+
+      <!-- Źródło 3: Ania Gotuje -->
+      <label class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-950/40 text-amber-200 text-xs font-bold cursor-pointer hover:bg-amber-900/50 transition select-none">
+        <input type="checkbox" id="srcAniaGotujeCb" class="accent-amber-500 w-4 h-4 cursor-pointer" checked>
+        <span>👩‍🍳 Ania Gotuje</span>
+      </label>
+
+      <span class="text-[11px] text-slate-400 ml-auto hidden md:inline">Zaznacz gdzie szukać – przeszukujemy wybrane jednocześnie!</span>
+    </div>
+
+    <!-- Typy posiłków (Kategorie główne) -->
+    <div class="space-y-3" id="mealTypesContainer">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Typ posiłku:</h2>
+        <span id="resultsStats" class="text-xs text-slate-400 font-medium">Wczytywanie...</span>
+      </div>
+
+      <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="mealTypeTabs">
+        <!-- Generowane z MEAL_TYPES -->
+      </div>
+    </div>
+
+    <!-- Pasek filtrów i wyszukiwarki -->
+    <div class="p-4 rounded-2xl bg-slate-800/70 border border-slate-700/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      
+      <!-- Wyszukiwarka tekstowa z przyciskiem szukania w chmurze -->
+      <div class="relative flex-1 flex items-center gap-2">
+        <div class="relative flex-1">
+          <span class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 text-sm">🔍</span>
+          <input type="text" id="searchInput" placeholder="Szukaj po nazwie potrawy, składnikach (np. pizza bezglutenowa, ciecierzyca, szpinak)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
+        </div>
+        <button id="searchCloudBtn" class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-teal-900/30 whitespace-nowrap hidden">
+          <span>🌐 Szukaj w chmurze</span>
+        </button>
+      </div>
+
+      <!-- Filtry dietetyczne i czasowe -->
+      <div class="flex flex-wrap items-center gap-2" id="filterPillsContainer">
+        <!-- Filtr: Bezglutenowe -->
+        <button id="filterGlutenFreeBtn" class="filter-pill px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 text-xs font-semibold flex items-center gap-1.5 hover:border-slate-500 transition">
+          <span>🌾 Tylko Bezglutenowe</span>
+        </button>
+
+        <!-- Filtr: Wegetariańskie -->
+        <button id="filterVegetarianBtn" class="filter-pill px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-300 text-xs font-semibold flex items-center gap-1.5 hover:border-slate-500 transition">
+          <span>🌱 Wegetariańskie</span>
+        </button>
+
+        <!-- Filtr czasu -->
+        <select id="filterTimeSelect" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer">
+          <option value="0">⏱️ Dowolny czas</option>
+          <option value="30">⚡ Szybkie (do 30 min)</option>
+          <option value="60">⏳ Do 60 min</option>
+        </select>
+
+        <!-- Przyciski masowego zaznaczania -->
+        <div class="flex items-center gap-1 ml-auto md:ml-2">
+          <button id="selectAllVisibleBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition" title="Zaznacz wszystkie widoczne na liście">
+            ✓ Zaznacz widoczne
+          </button>
+          <button id="deselectAllBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-semibold transition hidden" title="Odznacz wszystkie">
+            ✕ Odznacz
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Szybkie tagi wyszukiwania w chmurze -->
+    <div id="cloudQuickTags" class="hidden flex items-center gap-2 overflow-x-auto pb-1 text-xs text-slate-400">
+      <span class="font-bold text-slate-300 whitespace-nowrap">🔥 Popularne w TM:</span>
+      <button class="quick-cloud-tag px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700/80 whitespace-nowrap transition" data-q="pizza bezglutenowa">🍕 Pizza bezglutenowa</button>
+      <button class="quick-cloud-tag px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700/80 whitespace-nowrap transition" data-q="chleb bezglutenowy">🍞 Chleb bezglutenowy</button>
+      <button class="quick-cloud-tag px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700/80 whitespace-nowrap transition" data-q="focaccia">🥖 Focaccia</button>
+      <button class="quick-cloud-tag px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700/80 whitespace-nowrap transition" data-q="naleśniki bezglutenowe">🥞 Naleśniki bezglutenowe</button>
+      <button class="quick-cloud-tag px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700/80 whitespace-nowrap transition" data-q="zupa krem">🍲 Zupa krem</button>
+      <button class="quick-cloud-tag px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700/80 whitespace-nowrap transition" data-q="sernik jaglany">🍰 Sernik jaglany</button>
+    </div>
+
+    <!-- Siatka przepisów (Recipe Cards z checkboxami i zdjęciami) -->
+    <div id="recipesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Generowane dynamicznie -->
+    </div>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- PŁYWAJĄCY PASEK AKCJI DLA CHECKBOXÓW (FLOATING BAR) -->
+  <!-- ========================================== -->
+  <div id="floatingActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-emerald-500/50 shadow-2xl shadow-emerald-950/80 rounded-2xl p-3 sm:px-6 sm:py-3.5 backdrop-blur-md flex items-center gap-4 transition-all duration-300 translate-y-32 opacity-0 pointer-events-none max-w-xl w-[92%] sm:w-auto">
+    <div class="flex items-center gap-3">
+      <div id="selectedIconBox" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+        ✓
+      </div>
+      <div>
+        <p class="text-xs font-bold text-white">
+          Zaznaczono: <span id="selectedCountText" class="text-emerald-400 text-sm">0</span> przepisów
+        </p>
+        <p id="selectedSubtext" class="text-[10px] text-slate-400 hidden sm:block">Gotowe do przesłania ze zdjęciami do Cookidoo</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 ml-auto">
+      <button id="cancelSelectionBtn" class="px-3 py-1.5 text-xs text-slate-400 hover:text-white transition">
+        Anuluj
+      </button>
+      <button id="importSelectedBatchBtn" class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-700/30 flex items-center gap-2 transition">
+        <span>🚀 Importuj zaznaczone</span>
+      </button>
+      <button id="deleteSelectedBatchBtn" class="hidden px-5 py-2 rounded-xl bg-gradient-to-r from-rose-700 to-red-600 hover:from-rose-600 hover:to-red-500 text-white text-xs font-extrabold shadow-lg shadow-rose-950/40 flex items-center gap-2 transition">
+        <span>🗑️ Usuń zaznaczone z Cookidoo</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: POSTĘP MASOWEGO IMPORTU -->
+  <!-- ========================================== -->
+  <div id="batchProgressModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+      <h3 class="text-lg font-bold text-white mb-1 flex items-center gap-2">
+        <span>🚀 Masowy import do Cookidoo</span>
+      </h3>
+      <p id="batchProgressSubtitle" class="text-xs text-slate-400 mb-4">Wysyłanie wybranych przepisów i zdjęć...</p>
+
+      <!-- Pasek postępu -->
+      <div class="w-full bg-slate-800 rounded-full h-3 mb-4 overflow-hidden border border-slate-700">
+        <div id="batchProgressBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-0 transition-all duration-300"></div>
+      </div>
+
+      <!-- Lista statusów -->
+      <div id="batchProgressList" class="max-h-60 overflow-y-auto space-y-2 text-xs mb-5 pr-1"></div>
+
+      <!-- Przycisk zamknięcia po zakończeniu -->
+      <div class="flex justify-end">
+        <button id="closeBatchProgressBtn" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition hidden">
+          Zamknij
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: POŁĄCZENIE Z COOKIDOO (AUTH) -->
+  <!-- ========================================== -->
+  <div id="authModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+      <button id="closeAuthModal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
+      
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-xl">
+          🔑
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-white">Połącz z kontem Cookidoo</h2>
+          <p class="text-xs text-slate-400">Wybierz wygodną metodę logowania</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 p-1 bg-slate-800/80 rounded-xl mb-5">
+        <button id="tabMethodCookie" class="py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition">
+          Ciasteczko _oauth2_proxy (Zalecane)
+        </button>
+        <button id="tabMethodPass" class="py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+          E-mail i Hasło
+        </button>
+      </div>
+
+      <form id="formCookie" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">
+            Wartość ciasteczka <code class="text-emerald-400 font-mono">_oauth2_proxy</code> lub token JWT:
+          </label>
+          <textarea id="cookieInput" rows="3" placeholder="Wklej wartość ciasteczka _oauth2_proxy..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-emerald-500"></textarea>
+          <div class="mt-2 text-[11px] text-slate-400 bg-slate-800/50 p-2.5 rounded-lg border border-slate-800">
+            <span class="font-bold text-slate-300">Jak pobrać w 10 sekund:</span> Zaloguj się na <a href="https://cookidoo.pl" target="_blank" class="text-emerald-400 underline">cookidoo.pl</a> w przeglądarce, wciśnij <kbd class="px-1 py-0.5 bg-slate-700 rounded text-slate-200">F12</kbd> &rarr; zakładka <em>Aplikacja / Pamięć (Application)</em> &rarr; <em>Pliki cookie</em> &rarr; skopiuj wartość pola <strong class="text-slate-200">_oauth2_proxy</strong>.
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+          <span>💾 Zapisz i Połącz</span>
+        </button>
+      </form>
+
+      <form id="formPass" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Adres e-mail Cookidoo:</label>
+          <input type="email" id="emailInput" placeholder="twoj-email@domena.pl" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Hasło Cookidoo:</label>
+          <input type="password" id="passwordInput" placeholder="••••••••" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="text-[11px] text-slate-400">
+          Używamy oficjalnego bezpiecznego przepływu logowania OAuth2/PKCE Vorwerk CIAM.
+        </div>
+
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+          <span>🔐 Zaloguj i Połącz</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: SZCZEGÓŁY PRZEPISU -->
+  <!-- ========================================== -->
+  <div id="recipeDetailModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl relative">
+      <div class="p-6 border-b border-slate-800 bg-slate-800/40 flex justify-between items-start">
+        <div>
+          <div class="flex items-center gap-2 mb-1" id="detailBadgesContainer"></div>
+          <h2 id="detailTitle" class="text-xl font-extrabold text-white"></h2>
+          <p id="detailDesc" class="text-xs text-slate-400 mt-1"></p>
+        </div>
+        <button id="closeDetailModal" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-6">
+        <img id="detailImage" class="w-full h-56 object-cover rounded-xl border border-slate-700 shadow-md hidden" alt="Zdjęcie potrawy">
+
+        <div class="grid grid-cols-3 gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-800 text-center text-xs">
+          <div>⏱️ Przyg: <strong id="detailPrepTime" class="text-white"></strong></div>
+          <div>⌛ Całość: <strong id="detailTotalTime" class="text-white"></strong></div>
+          <div>🍽️ Porcje: <strong id="detailServings" class="text-white"></strong></div>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <span>🛒 Składniki</span>
+          </h4>
+          <ul id="detailIngredientsList" class="space-y-1.5 text-xs text-slate-300"></ul>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <span>🥣 Kroki Thermomix (z nastawami urządzenia)</span>
+          </h4>
+          <div id="detailStepsList" class="space-y-3"></div>
+        </div>
+
+        <div id="detailHintsBox" class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-200 hidden">
+          <strong class="font-bold text-amber-400">💡 Wskazówka:</strong> <span id="detailHintsText"></span>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-slate-800 bg-slate-800/50 flex flex-wrap items-center justify-between gap-3">
+        <a id="detailCookidooLink" href="#" target="_blank" class="hidden px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold flex items-center gap-1.5 transition">
+          <span>🔗 Otwórz w cookidoo.pl</span>
+        </a>
+        <div class="flex items-center gap-2 ml-auto">
+          <button id="detailCloseBtn" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
+            Zamknij
+          </button>
+          <button id="detailDeleteBtn" class="hidden px-5 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-rose-900/30 transition">
+            <span>🗑️ Usuń z Cookidoo</span>
+          </button>
+          <button id="detailImportBtn" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition">
+            <span>➕ Importuj (ze zdjęciem) do Cookidoo</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: DODAJ Z URL / WŁASNY PRZEPIS -->
+  <!-- ========================================== -->
+  <div id="customRecipeModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
+      <button id="closeCustomModal" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-teal-600/20 text-teal-400 flex items-center justify-center text-xl">
+          🌐
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-white">Importuj z URL lub Własnego Tekstu</h2>
+          <p class="text-xs text-slate-400">Pobiera także oryginalne zdjęcie potrawy</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 mb-5">
+        <label class="block text-xs font-medium text-slate-300">Wklej link do przepisu (np. Kwestia Smaku, Ani Gotuje, Chefkoch):</label>
+        <div class="flex gap-2">
+          <input type="url" id="scrapeUrlInput" placeholder="https://..." class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-teal-500">
+          <button id="scrapeBtn" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition flex items-center gap-1.5">
+            <span>Pobierz</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="relative flex py-2 items-center">
+        <div class="flex-grow border-t border-slate-800"></div>
+        <span class="flex-shrink mx-3 text-[10px] text-slate-500 uppercase tracking-widest">lub wklej tekst</span>
+        <div class="flex-grow border-t border-slate-800"></div>
+      </div>
+
+      <div class="space-y-3 mt-2">
+        <textarea id="rawRecipeTextInput" rows="5" placeholder="Wklej treść przepisu (tytuł, składniki, kroki z nastawami TM np. 2 min/37°C/obr. 2)..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"></textarea>
+        
+        <div>
+          <label class="block text-[11px] font-medium text-slate-400 mb-1">Opcjonalny adres URL zdjęcia potrawy:</label>
+          <input type="url" id="rawRecipeImageUrl" placeholder="https://.../zdjecie.jpg" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500">
+        </div>
+
+        <button id="parseAndImportBtn" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+          <span>⚡ Przetwórz i Wyślij do Cookidoo (ze zdjęciem)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 space-y-3 pointer-events-none"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
